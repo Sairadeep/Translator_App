@@ -62,7 +62,7 @@ fun TranslatorDemo() {
         .setSourceLanguage(Locale.ENGLISH.toString())
         .setTargetLanguage(TranslateLanguage.ARABIC)
         .build()
-    val translator = Translation.getClient(options)
+    val translators = Translation.getClient(options)
 
 
     Column(
@@ -74,11 +74,11 @@ fun TranslatorDemo() {
             val conditions = DownloadConditions.Builder()
                 .requireWifi()
                 .build()
-            translator.downloadModelIfNeeded(conditions)
+            translators.downloadModelIfNeeded(conditions)
                 .addOnSuccessListener {
                     // Model downloaded successfully. Okay to start translating.
                     // (Set a flag, unhide the translation UI, etc.)
-                    translator.translate(textValue.value)
+                    translators.translate(textValue.value)
                         .addOnSuccessListener { translatedText ->
                             // Translation successful.
                             textValue.value = translatedText
