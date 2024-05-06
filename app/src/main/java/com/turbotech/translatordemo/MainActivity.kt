@@ -31,6 +31,7 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
 import com.turbotech.translatordemo.ui.theme.TranslatorDemoTheme
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,8 +58,9 @@ fun TranslatorDemo() {
     }
     // Create an translator:
     val options = TranslatorOptions.Builder()
-        .setSourceLanguage(TranslateLanguage.ENGLISH)
-        .setTargetLanguage(TranslateLanguage.CHINESE)
+//    setSourceLanguage => Locale.ENGLISH.toString() OR TranslateLanguage.ENGLISH
+        .setSourceLanguage(Locale.ENGLISH.toString())
+        .setTargetLanguage(TranslateLanguage.ARABIC)
         .build()
     val englishGermanTranslator = Translation.getClient(options)
 
