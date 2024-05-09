@@ -1,6 +1,7 @@
 package com.turbotech.translatordemo
 
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -10,13 +11,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.twotone.Person
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,24 +53,41 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun TranslatorDemo() {
     val context = LocalContext.current
-    val textValue = remember {
-        mutableStateOf("Hey, how are you")
+    lateinit var textToSpeech: TextToSpeech
+    val userValueTranslated = remember {
+        mutableStateOf("")
+    }
+    val userInputValue = remember {
+        mutableStateOf("")
+    }
+    val speakStatus = remember {
+        mutableStateOf(false)
     }
     // Create an translator:
     val options = TranslatorOptions.Builder()
 //    setSourceLanguage => Locale.ENGLISH.toString() OR TranslateLanguage.ENGLISH
         .setSourceLanguage(Locale.ENGLISH.toString())
-        .setTargetLanguage(TranslateLanguage.ARABIC)
+        .setTargetLanguage(TranslateLanguage.HINDI)
         .build()
     val translators = Translation.getClient(options)
 
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        TextField(value = userInputValue.value, onValueChange = {
+            userInputValue.value = it
+        },
+            label = {
+                Text(text = "User Input")
+            })
+        Spacer(modifier = Modifier.height(25.dp))
         Button(onClick = {
+            speakStatus.value = true
             val conditions = DownloadConditions.Builder()
                 .requireWifi()
                 .build()
@@ -78,11 +95,11 @@ fun TranslatorDemo() {
                 .addOnSuccessListener {
                     // Model downloaded successfully. Okay to start translating.
                     // (Set a flag, unhide the translation UI, etc.)
-                    translators.translate(textValue.value)
+                    translators.translate(userInputValue.value)
                         .addOnSuccessListener { translatedText ->
                             // Translation successful.
-                            textValue.value = translatedText
-                            Log.d("onTranslateError1", textValue.value)
+                            userValueTranslated.value = translatedText
+                            Log.d("onTranslateError1", userValueTranslated.value)
                         }
                         .addOnFailureListener { exception ->
                             // Error.
@@ -104,10 +121,39 @@ fun TranslatorDemo() {
                 }
             Toast.makeText(context, "Button clicked", Toast.LENGTH_SHORT).show()
         }) {
-            Icon(Icons.TwoTone.Person, contentDescription = "")
+            Text(text = "Translate", fontSize = 15.sp)
         }
         Spacer(modifier = Modifier.height(25.dp))
-        Text(text = textValue.value, fontSize = 24.sp)
+        // speak out
+        textToSpeech = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val speakResult = textToSpeech.setLanguage(Locale.getDefault())
+                if (speakResult == TextToSpeech.LANG_MISSING_DATA || speakResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    Toast.makeText(
+                        context,
+                        "Language not supported",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                }
+            } else {
+                Toast.makeText(
+                    context,
+                    "I'm not knowing what's wrong..!",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            if(speakStatus.value){
+                textToSpeech.speak(
+                    userValueTranslated.value,
+                    TextToSpeech.QUEUE_FLUSH,
+                    null,
+                    null
+                )
+                speakStatus.value = false
+            }
+        }
+        Text(text = userValueTranslated.value)
     }
 }
 
