@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.BottomAppBar
@@ -50,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -103,12 +105,14 @@ fun TranslatorHomePage() {
         mutableStateOf(false)
     }
     val translators = translatorFn(toTranslateLanguage)
+    val keyboardController =  LocalSoftwareKeyboardController.current
 
     Surface(
         modifier = Modifier
             .padding(2.dp)
             .clickable {
                 dropDwnStatus.value = false
+                keyboardController?.hide()
             },
         shape = RoundedCornerShape(13.dp)
     ) {
@@ -148,7 +152,13 @@ private fun ScaffoldFn(
 ) {
     Scaffold(
         topBar = {
-            TopAppbarFn(context, speakStatus, userValueTranslated)
+            TopAppbarFn(
+                context,
+                speakStatus,
+                userValueTranslated,
+                xCoroutineScope,
+                snackBarHostState
+            )
         },
         bottomBar = {
             BottomBarFn(
@@ -179,7 +189,9 @@ private fun ScaffoldFn(
 private fun TopAppbarFn(
     context: Context,
     speakStatus: MutableState<Boolean>,
-    userValueTranslated: MutableState<String>
+    userValueTranslated: MutableState<String>,
+    xCoroutineScope: CoroutineScope,
+    snackBarHostState: SnackbarHostState
 ) {
     lateinit var textToSpeech: TextToSpeech
     TopAppBar(
@@ -192,41 +204,66 @@ private fun TopAppbarFn(
         ),
         actions = {
             IconButton(onClick = {
-                Toast.makeText(context, "Speaking out...!", Toast.LENGTH_SHORT).show()
-                speakStatus.value = true
-                // speak out
-                textToSpeech = TextToSpeech(context) { status ->
-                    if (status == TextToSpeech.SUCCESS) {
-                        val speakResult = textToSpeech.setLanguage(Locale.getDefault())
-                        if (speakResult == TextToSpeech.LANG_MISSING_DATA || speakResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Toast.makeText(
+                    context,
+                    "History coming soon...!",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_history_24),
+                    contentDescription = "",
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+            IconButton(onClick = {
+                if (userValueTranslated.value.isNotEmpty()) {
+                    Toast.makeText(context, "Speaking out...!", Toast.LENGTH_SHORT).show()
+                    speakStatus.value = true
+                    // speak out
+                    textToSpeech = TextToSpeech(context) { status ->
+                        if (status == TextToSpeech.SUCCESS) {
+                            val speakResult = textToSpeech.setLanguage(Locale.getDefault())
+                            if (speakResult == TextToSpeech.LANG_MISSING_DATA || speakResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                                Toast.makeText(
+                                    context,
+                                    "Language not supported",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } else {
                             Toast.makeText(
                                 context,
-                                "Language not supported",
+                                "I'm not knowing what's wrong..!",
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "I'm not knowing what's wrong..!",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        if (speakStatus.value) {
+                            textToSpeech.speak(
+                                userValueTranslated.value,
+                                TextToSpeech.QUEUE_FLUSH,
+                                null,
+                                null
+                            )
+                            speakStatus.value = false
+                        }
                     }
-                    if (speakStatus.value) {
-                        textToSpeech.speak(
-                            userValueTranslated.value,
-                            TextToSpeech.QUEUE_FLUSH,
-                            null,
-                            null
+                } else {
+                    xCoroutineScope.launch {
+                        snackBarHostState.showSnackbar(
+                            message = "Provide some text to translate and speak",
+                            duration = SnackbarDuration.Short,
+                            withDismissAction = true
                         )
-                        speakStatus.value = false
                     }
                 }
             }) {
                 Icon(
                     painter = painterResource(id = R.drawable.baseline_mic_external_on_24),
                     contentDescription = "",
-                    tint = Color.White
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
                 )
             }
         }
@@ -298,7 +335,11 @@ private fun UserInputFn(
             .padding(it)
             .clickable {
                 dropDwnStatus.value = false
-            }
+            },
+        keyboardOptions = KeyboardOptions(
+            // For spelling corrections i.e., aer -> are
+            autoCorrect = true
+        )
     )
 }
 
@@ -359,7 +400,7 @@ private fun SnackBarFn(snackBarHostState: SnackbarHostState) {
             snackbarData = it,
             contentColor = Color.White,
             containerColor = Color.DarkGray,
-            dismissActionContentColor = Color.Red
+            dismissActionContentColor = Color.White
         )
     }
 }
