@@ -1,6 +1,11 @@
 package com.turbotech.translatordemo
 
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +15,13 @@ import androidx.compose.ui.Modifier
 import com.turbotech.translatordemo.ui.theme.TranslatorDemoTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val listenerComponent =
+        ComponentName(
+            "com.turbotech.translatordemo",
+            "com.turbotech.translatordemo.LangNotificationService"
+        )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -23,5 +35,26 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        val isPermissionGranted = checkNotificationListenerPermission(this, listenerComponent)
+        if (!isPermissionGranted) {
+            val permissionIntentLaunch =
+                Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+            this.startActivity(permissionIntentLaunch)
+        } else {
+            Toast.makeText(this@MainActivity, "Permission Granted", Toast.LENGTH_SHORT).show()
+        }
     }
+}
+
+
+fun checkNotificationListenerPermission(
+    context: Context,
+    listenerComponent: ComponentName
+): Boolean {
+    val enabledListeners =
+        Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+    val checkPermission =
+        enabledListeners?.split(":")
+            ?.contains(listenerComponent.flattenToString()) == true
+    return checkPermission
 }
