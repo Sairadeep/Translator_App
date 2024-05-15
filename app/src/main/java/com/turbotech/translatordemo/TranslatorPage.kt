@@ -1,9 +1,15 @@
 package com.turbotech.translatordemo
 
+import android.content.Intent
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -46,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -73,6 +81,8 @@ fun TranslatorHomePage() {
     val context = LocalContext.current
     val xCoroutineScope = rememberCoroutineScope()
     lateinit var textToSpeech: TextToSpeech
+   lateinit var recognizerIntent : Intent
+    var speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
     val translateLanguageList =
         arrayListOf("HINDI", "TELUGU", "KANNADA", "GUJARATI", "MARATHI", "TAMIL")
     val snackBarHostState = remember { SnackbarHostState() }
@@ -154,13 +164,14 @@ fun TranslatorHomePage() {
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         }
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "I'm not knowing what's wrong..!",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
                                     }
+//                                    else {
+//                                        Toast.makeText(
+//                                            context,
+//                                            "I'm not knowing what's wrong..!",
+//                                            Toast.LENGTH_SHORT
+//                                        ).show()
+//                                    }
                                     if (speakStatus.value) {
                                         textToSpeech.speak(
                                             userValueTranslated.value,
@@ -182,7 +193,7 @@ fun TranslatorHomePage() {
                             }
                         }) {
                             Icon(
-                                painter = painterResource(id = R.drawable.baseline_mic_external_on_24),
+                                painter = painterResource(id = R.drawable.baseline_speaker_24),
                                 contentDescription = "",
                                 tint = Color.White,
                                 modifier = Modifier.size(40.dp)
@@ -190,6 +201,93 @@ fun TranslatorHomePage() {
                         }
                     }
                 )
+            },
+            floatingActionButton = {
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, Color.Magenta, shape = CircleShape)
+                        .clickable(
+                            enabled = true,
+                            onClick = {
+                                if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                                    speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                                    recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                                    recognizerIntent.putExtra(
+                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                    )
+                                    recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+
+                                    speechRecognizer.setRecognitionListener(object :
+                                        RecognitionListener {
+
+                                        override fun onReadyForSpeech(params: Bundle?) {
+                                            Log.d("OnReadyForSpeech", "User Ready for speaking.")
+                                        }
+
+                                        override fun onBeginningOfSpeech() {
+                                            Log.d("onBeginningOfSpeech", "The user has started to speak.")
+                                        }
+
+                                        override fun onRmsChanged(rmsdB: Float) {
+                                            Log.d("OnRmsChanged", "Change in the level of sound")
+                                        }
+
+                                        override fun onBufferReceived(buffer: ByteArray?) {
+                                            Log.d("OnBufferReceived", "More sound has been received.")
+                                        }
+
+                                        override fun onEndOfSpeech() {
+                                            Log.d("onEndOfSpeech", "Called after the user stops speaking.")
+                                            speechRecognizer.stopListening()
+                                        }
+
+                                        override fun onError(error: Int) {
+                                            Log.d("OnError", "An network or recognition error occurred.")
+                                        }
+
+                                        override fun onResults(results: Bundle?) {
+                                            val speechResults =
+                                                results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                                            if (!speechResults.isNullOrEmpty()) {
+                                                speechRecognizer.stopListening()
+                                                userInputValue.value = speechResults[0].format(Locale.getDefault())
+                                                Log.d("Recognized_Text", "Current Value : ${speechResults[0].uppercase()}")
+                                            }
+                                        }
+
+                                        override fun onPartialResults(partialResults: Bundle?) {
+                                            Log.d(
+                                                "OnPartialResults",
+                                                "Called when partial recognition results are available."
+                                            )
+                                        }
+
+                                        override fun onEvent(eventType: Int, params: Bundle?) {
+                                            Log.d("OnEvent", "Reserved for adding future events $eventType")
+                                        }
+                                    })
+                                    speechRecognizer.startListening(recognizerIntent)
+                                } else {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "Speech recognizer not available..!",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                }
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.baseline_mic_external_on_24),
+                        contentDescription = ""
+                    )
+                }
             },
             bottomBar = {
                 BottomAppBar(
@@ -299,13 +397,14 @@ fun TranslatorHomePage() {
                                     )
                                 }
                             }
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Please enter some text",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
+//                    else {
+//                        Toast.makeText(
+//                            context,
+//                            "Please enter some text",
+//                            Toast.LENGTH_SHORT
+//                        ).show()
+//                    }
                 }
                     .addOnFailureListener { exception ->
                         exception.localizedMessage?.let { it1 ->
@@ -316,7 +415,7 @@ fun TranslatorHomePage() {
                         }
                     }
                 TextField(
-                    value = userInputValue.value,
+                    value = userInputValue.value.format(Locale.ENGLISH),
                     onValueChange = { textAT ->
                         userInputValue.value = textAT
                     },
@@ -343,7 +442,7 @@ fun TranslatorHomePage() {
                     text = userValueTranslated.value,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 10.dp, top = 10.dp),
+                        .padding(start = 10.dp, top = 2.dp),
                     fontSize = 20.sp,
                     color = Color.Black,
                     textAlign = TextAlign.Start
@@ -383,3 +482,4 @@ private fun SnackBarFn(snackBarHostState: SnackbarHostState) {
         )
     }
 }
+

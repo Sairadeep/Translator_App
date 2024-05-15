@@ -1,8 +1,11 @@
 package com.turbotech.translatordemo
 
+import android.Manifest
+import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
@@ -12,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.turbotech.translatordemo.ui.theme.TranslatorDemoTheme
 
 class MainActivity : ComponentActivity() {
@@ -34,6 +39,17 @@ class MainActivity : ComponentActivity() {
                     TranslatorHomePage()
                 }
             }
+        }
+        if (ContextCompat.checkSelfPermission(
+                this@MainActivity,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this@MainActivity as Activity,
+                arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CALL_PHONE),
+                99
+            )
         }
         val isPermissionGranted = checkNotificationListenerPermission(this, listenerComponent)
         if (!isPermissionGranted) {
