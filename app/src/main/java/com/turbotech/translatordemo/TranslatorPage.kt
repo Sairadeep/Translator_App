@@ -82,7 +82,7 @@ fun TranslatorHomePage() {
     val xCoroutineScope = rememberCoroutineScope()
     lateinit var textToSpeech: TextToSpeech
    lateinit var recognizerIntent : Intent
-    var speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+    val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
     val translateLanguageList =
         arrayListOf("HINDI", "TELUGU", "KANNADA", "GUJARATI", "MARATHI", "TAMIL")
     val snackBarHostState = remember { SnackbarHostState() }
@@ -212,7 +212,6 @@ fun TranslatorHomePage() {
                             enabled = true,
                             onClick = {
                                 if (SpeechRecognizer.isRecognitionAvailable(context)) {
-                                    speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
                                     recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                                     recognizerIntent.putExtra(
                                         RecognizerIntent.EXTRA_LANGUAGE_MODEL,
