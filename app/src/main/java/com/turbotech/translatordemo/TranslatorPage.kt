@@ -36,9 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,7 +45,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,24 +62,19 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
-import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.nl.translate.Translation
-import com.google.mlkit.nl.translate.Translator
-import com.google.mlkit.nl.translate.TranslatorOptions
-import com.turbotech.translatordemo.model.TranslationText
-import com.turbotech.translatordemo.viewModel.TranslationHistoryVM
+import com.turbotech.translatordemo.viewModel.TranslationVM
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TranslatorHomePage(translationHistoryVM: TranslationHistoryVM) {
+fun TranslatorHomePage(translationVM: TranslationVM) {
 
     val context = LocalContext.current
     val xCoroutineScope = rememberCoroutineScope()
+    lateinit var recognizerIntent: Intent
     val textToSpeech = remember { TextToSpeech(context) {} }
-   lateinit var recognizerIntent : Intent
     val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
     val translateLanguageList =
         arrayListOf("HINDI", "TELUGU", "KANNADA", "GUJARATI", "MARATHI", "TAMIL")
@@ -102,17 +94,17 @@ fun TranslatorHomePage(translationHistoryVM: TranslationHistoryVM) {
     val toTranslateLanguage = remember {
         mutableStateOf("")
     }
-    val userValueTranslated = remember {
-        mutableStateOf("Translated Text...!")
-    }
     val userInputValue = remember {
         mutableStateOf("")
+    }
+    val userValueTranslated = remember {
+        mutableStateOf("Translated Text...!")
     }
     val speakStatus = remember {
         mutableStateOf(false)
     }
-    val translators = translatorFn(toTranslateLanguage)
-    val keyboardController =  LocalSoftwareKeyboardController.current
+    val translators = translationVM.translatorFn(toTranslateLanguage)
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Surface(
         modifier = Modifier
@@ -149,10 +141,14 @@ fun TranslatorHomePage(translationHistoryVM: TranslationHistoryVM) {
                             )
                         }
                         IconButton(onClick = {
-                            if (userValueTranslated.value.isNotEmpty()) {
-                                Toast.makeText(context, "Speaking out...!", Toast.LENGTH_SHORT)
-                                    .show()
+                            if (userInputValue.value.isNotEmpty()) {
                                 speakStatus.value = true
+                                Toast.makeText(
+                                    context,
+                                    "Speaking out...!",
+                                    Toast.LENGTH_SHORT
+                                )
+                                    .show()
                             } else {
                                 xCoroutineScope.launch {
                                     snackBarHostState.showSnackbar(
@@ -366,74 +362,21 @@ fun TranslatorHomePage(translationHistoryVM: TranslationHistoryVM) {
                 }
             },
             snackbarHost = {
-                SnackBarFn(snackBarHostState)
+               translationVM.SnackBarFn(snackBarHostState)
             }
         ) {
             Column {
                 LaunchedEffect(speakStatus.value) {
                     // speak out
-                    val speakResult =
-                        textToSpeech.setLanguage(Locale.getDefault())
-                    if (speakResult == TextToSpeech.LANG_MISSING_DATA || speakResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-                        Toast.makeText(
-                            context,
-                            "Language not supported",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
                     if (speakStatus.value) {
-                        textToSpeech.speak(
-                            userValueTranslated.value,
-                            TextToSpeech.QUEUE_FLUSH,
-                            null,
-                            null
-                        )
+                        translationVM.textToSpeakFn(textToSpeech, userValueTranslated.value)
                         speakStatus.value = false
                     }
+
                 }
-                val conditions = DownloadConditions.Builder()
-                    .requireWifi()
-                    .build()
-                translators.downloadModelIfNeeded(conditions).addOnSuccessListener {
-                    if (userInputValue.value.isNotEmpty()) {
-                        translators.translate(userInputValue.value)
-                            .addOnSuccessListener { translatedText ->
-                                // Translation successful.
-                                userValueTranslated.value = translatedText
-                                Log.d("onTranslateError1", userValueTranslated.value)
-                                translationHistoryVM.insertTranslationText(
-                                    TranslationText(
-                                        userInputText = userInputValue.value,
-                                        translatedText = translatedText
-                                    )
-                                )
-                            }
-                            .addOnFailureListener { exception ->
-                                // Error.
-                                exception.localizedMessage?.let { it1 ->
-                                    Log.d(
-                                        "onTranslateErrors",
-                                        it1
-                                    )
-                                }
-                            }
-                    }
-//                    else {
-//                        Toast.makeText(
-//                            context,
-//                            "Please enter some text",
-//                            Toast.LENGTH_SHORT
-//                        ).show()
-//                    }
-                }
-                    .addOnFailureListener { exception ->
-                        exception.localizedMessage?.let { it1 ->
-                            Log.d(
-                                "onTranslateErrors2",
-                                it1
-                            )
-                        }
-                    }
+
+                translationVM.TranslationFn(translators, userInputValue, userValueTranslated, translationVM)
+
                 TextField(
                     value = userInputValue.value.format(Locale.ENGLISH),
                     onValueChange = { textAT ->
@@ -454,7 +397,6 @@ fun TranslatorHomePage(translationHistoryVM: TranslationHistoryVM) {
                             dropDwnStatus.value = false
                         },
                     keyboardOptions = KeyboardOptions(
-                        // For spelling corrections i.e., waht -> what
                         autoCorrect = true
                     )
                 )
@@ -480,26 +422,6 @@ fun TranslatorHomePage(translationHistoryVM: TranslationHistoryVM) {
     }
 }
 
-@Composable
-private fun translatorFn(toTranslateLanguage: MutableState<String>): Translator {
-    // Creating an translator
-    val options = TranslatorOptions.Builder()
-        .setSourceLanguage(Locale.ENGLISH.toString())
-        .setTargetLanguage(toTranslateLanguage.value)
-        .build()
-    val translators = Translation.getClient(options)
-    return translators
-}
 
-@Composable
-private fun SnackBarFn(snackBarHostState: SnackbarHostState) {
-    SnackbarHost(hostState = snackBarHostState) {
-        Snackbar(
-            snackbarData = it,
-            contentColor = Color.White,
-            containerColor = Color.DarkGray,
-            dismissActionContentColor = Color.White
-        )
-    }
-}
+
 

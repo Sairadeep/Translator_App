@@ -24,12 +24,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.turbotech.translatordemo.viewModel.TranslationHistoryVM
+import com.turbotech.translatordemo.viewModel.TranslationVM
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TranslationHistoryPage(translationHistoryVM: TranslationHistoryVM) {
-    val historyList = translationHistoryVM.translationHistory.collectAsState().value
+fun TranslationHistoryPage(translationVM: TranslationVM) {
+//    The collectAsState() function is used to collect the value emitted by the StateFlow. It creates a read-only state that reflects the latest value emitted by the flow.
+//    By using collectAsState(), you create a reactive connection between the StateFlow and your UI or other parts of your application.
+//    As soon as the StateFlow value changes, your UI components (like Composables in Jetpack Compose) automatically re-render with the updated data.
+    val historyList = translationVM.translationHistory.collectAsState().value
     Scaffold(
         topBar = {
             TopAppBar(
