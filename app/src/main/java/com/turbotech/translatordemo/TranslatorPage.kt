@@ -46,6 +46,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -60,7 +61,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,17 +70,18 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
+import com.turbotech.translatordemo.model.TranslationText
+import com.turbotech.translatordemo.viewModel.TranslationHistoryVM
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Preview(showBackground = true)
 @Composable
-fun TranslatorHomePage() {
+fun TranslatorHomePage(translationHistoryVM: TranslationHistoryVM) {
 
     val context = LocalContext.current
     val xCoroutineScope = rememberCoroutineScope()
-    lateinit var textToSpeech: TextToSpeech
+    val textToSpeech = remember { TextToSpeech(context) {} }
    lateinit var recognizerIntent : Intent
     val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
     val translateLanguageList =
@@ -152,36 +153,6 @@ fun TranslatorHomePage() {
                                 Toast.makeText(context, "Speaking out...!", Toast.LENGTH_SHORT)
                                     .show()
                                 speakStatus.value = true
-                                // speak out
-                                textToSpeech = TextToSpeech(context) { status ->
-                                    if (status == TextToSpeech.SUCCESS) {
-                                        val speakResult =
-                                            textToSpeech.setLanguage(Locale.getDefault())
-                                        if (speakResult == TextToSpeech.LANG_MISSING_DATA || speakResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-                                            Toast.makeText(
-                                                context,
-                                                "Language not supported",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    }
-//                                    else {
-//                                        Toast.makeText(
-//                                            context,
-//                                            "I'm not knowing what's wrong..!",
-//                                            Toast.LENGTH_SHORT
-//                                        ).show()
-//                                    }
-                                    if (speakStatus.value) {
-                                        textToSpeech.speak(
-                                            userValueTranslated.value,
-                                            TextToSpeech.QUEUE_FLUSH,
-                                            null,
-                                            null
-                                        )
-                                        speakStatus.value = false
-                                    }
-                                }
                             } else {
                                 xCoroutineScope.launch {
                                     snackBarHostState.showSnackbar(
@@ -212,12 +183,16 @@ fun TranslatorHomePage() {
                             enabled = true,
                             onClick = {
                                 if (SpeechRecognizer.isRecognitionAvailable(context)) {
-                                    recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                                    recognizerIntent =
+                                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                                     recognizerIntent.putExtra(
                                         RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                                         RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
                                     )
-                                    recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                                    recognizerIntent.putExtra(
+                                        RecognizerIntent.EXTRA_LANGUAGE,
+                                        Locale.getDefault()
+                                    )
 
                                     speechRecognizer.setRecognitionListener(object :
                                         RecognitionListener {
@@ -227,7 +202,10 @@ fun TranslatorHomePage() {
                                         }
 
                                         override fun onBeginningOfSpeech() {
-                                            Log.d("onBeginningOfSpeech", "The user has started to speak.")
+                                            Log.d(
+                                                "onBeginningOfSpeech",
+                                                "The user has started to speak."
+                                            )
                                         }
 
                                         override fun onRmsChanged(rmsdB: Float) {
@@ -235,16 +213,25 @@ fun TranslatorHomePage() {
                                         }
 
                                         override fun onBufferReceived(buffer: ByteArray?) {
-                                            Log.d("OnBufferReceived", "More sound has been received.")
+                                            Log.d(
+                                                "OnBufferReceived",
+                                                "More sound has been received."
+                                            )
                                         }
 
                                         override fun onEndOfSpeech() {
-                                            Log.d("onEndOfSpeech", "Called after the user stops speaking.")
+                                            Log.d(
+                                                "onEndOfSpeech",
+                                                "Called after the user stops speaking."
+                                            )
                                             speechRecognizer.stopListening()
                                         }
 
                                         override fun onError(error: Int) {
-                                            Log.d("OnError", "An network or recognition error occurred.")
+                                            Log.d(
+                                                "OnError",
+                                                "An network or recognition error occurred."
+                                            )
                                         }
 
                                         override fun onResults(results: Bundle?) {
@@ -252,8 +239,12 @@ fun TranslatorHomePage() {
                                                 results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                                             if (!speechResults.isNullOrEmpty()) {
                                                 speechRecognizer.stopListening()
-                                                userInputValue.value = speechResults[0].format(Locale.getDefault())
-                                                Log.d("Recognized_Text", "Current Value : ${speechResults[0].uppercase()}")
+                                                userInputValue.value =
+                                                    speechResults[0].format(Locale.getDefault())
+                                                Log.d(
+                                                    "Recognized_Text",
+                                                    "Current Value : ${speechResults[0].uppercase()}"
+                                                )
                                             }
                                         }
 
@@ -265,7 +256,10 @@ fun TranslatorHomePage() {
                                         }
 
                                         override fun onEvent(eventType: Int, params: Bundle?) {
-                                            Log.d("OnEvent", "Reserved for adding future events $eventType")
+                                            Log.d(
+                                                "OnEvent",
+                                                "Reserved for adding future events $eventType"
+                                            )
                                         }
                                     })
                                     speechRecognizer.startListening(recognizerIntent)
@@ -376,6 +370,27 @@ fun TranslatorHomePage() {
             }
         ) {
             Column {
+                LaunchedEffect(speakStatus.value) {
+                    // speak out
+                    val speakResult =
+                        textToSpeech.setLanguage(Locale.getDefault())
+                    if (speakResult == TextToSpeech.LANG_MISSING_DATA || speakResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Toast.makeText(
+                            context,
+                            "Language not supported",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    if (speakStatus.value) {
+                        textToSpeech.speak(
+                            userValueTranslated.value,
+                            TextToSpeech.QUEUE_FLUSH,
+                            null,
+                            null
+                        )
+                        speakStatus.value = false
+                    }
+                }
                 val conditions = DownloadConditions.Builder()
                     .requireWifi()
                     .build()
@@ -386,6 +401,12 @@ fun TranslatorHomePage() {
                                 // Translation successful.
                                 userValueTranslated.value = translatedText
                                 Log.d("onTranslateError1", userValueTranslated.value)
+                                translationHistoryVM.insertTranslationText(
+                                    TranslationText(
+                                        userInputText = userInputValue.value,
+                                        translatedText = translatedText
+                                    )
+                                )
                             }
                             .addOnFailureListener { exception ->
                                 // Error.
