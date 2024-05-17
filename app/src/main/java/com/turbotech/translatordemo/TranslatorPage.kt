@@ -1,12 +1,7 @@
 package com.turbotech.translatordemo
 
-import android.content.Intent
-import android.os.Bundle
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
+import android.content.Context
 import android.speech.SpeechRecognizer
-import android.speech.tts.TextToSpeech
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,6 +40,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableIntState
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,22 +59,18 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
-import com.google.mlkit.nl.translate.TranslateLanguage
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.turbotech.translatordemo.viewModel.TranslationVM
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TranslatorHomePage(translationVM: TranslationVM) {
-
+fun TranslatorHomePage() {
+    val viewModel = viewModel<TranslationVM>()
     val context = LocalContext.current
     val xCoroutineScope = rememberCoroutineScope()
-    lateinit var recognizerIntent: Intent
-    val textToSpeech = remember { TextToSpeech(context) {} }
-    val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-    val translateLanguageList =
-        arrayListOf("HINDI", "TELUGU", "KANNADA", "GUJARATI", "MARATHI", "TAMIL")
+
     val snackBarHostState = remember { SnackbarHostState() }
     val dropDwnStatus = remember {
         mutableStateOf(false)
@@ -85,25 +78,16 @@ fun TranslatorHomePage(translationVM: TranslationVM) {
     val fromLanguage = remember {
         mutableStateOf("ENGLISH")
     }
-    val toLanguage = remember {
-        mutableStateOf("TELUGU")
-    }
+   
     val toTranslateIn = remember {
         mutableIntStateOf(0)
     }
-    val toTranslateLanguage = remember {
-        mutableStateOf("")
-    }
-    val userInputValue = remember {
-        mutableStateOf("")
-    }
-    val userValueTranslated = remember {
-        mutableStateOf("Translated Text...!")
-    }
+
+
     val speakStatus = remember {
         mutableStateOf(false)
     }
-    val translators = translationVM.translatorFn(toTranslateLanguage)
+   
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Surface(
@@ -117,219 +101,19 @@ fun TranslatorHomePage(translationVM: TranslationVM) {
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(text = "Translator App", fontSize = 24.sp)
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    actions = {
-                        IconButton(onClick = {
-                            Toast.makeText(
-                                context,
-                                "History coming soon...!",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.baseline_history_24),
-                                contentDescription = "",
-                                tint = Color.White,
-                                modifier = Modifier.size(40.dp)
-                            )
-                        }
-                        IconButton(onClick = {
-                            if (userInputValue.value.isNotEmpty()) {
-                                speakStatus.value = true
-                                Toast.makeText(
-                                    context,
-                                    "Speaking out...!",
-                                    Toast.LENGTH_SHORT
-                                )
-                                    .show()
-                            } else {
-                                xCoroutineScope.launch {
-                                    snackBarHostState.showSnackbar(
-                                        message = "Provide some text to translate and speak",
-                                        duration = SnackbarDuration.Short,
-                                        withDismissAction = true
-                                    )
-                                }
-                            }
-                        }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.baseline_speaker_24),
-                                contentDescription = "",
-                                tint = Color.White,
-                                modifier = Modifier.size(40.dp)
-                            )
-                        }
-                    }
-                )
+                TopBarFn(context, viewModel, speakStatus, xCoroutineScope, snackBarHostState)
             },
             floatingActionButton = {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, Color.Magenta, shape = CircleShape)
-                        .clickable(
-                            enabled = true,
-                            onClick = {
-                                if (SpeechRecognizer.isRecognitionAvailable(context)) {
-                                    recognizerIntent =
-                                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                                    recognizerIntent.putExtra(
-                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                                    )
-                                    recognizerIntent.putExtra(
-                                        RecognizerIntent.EXTRA_LANGUAGE,
-                                        Locale.getDefault()
-                                    )
-
-                                    speechRecognizer.setRecognitionListener(object :
-                                        RecognitionListener {
-
-                                        override fun onReadyForSpeech(params: Bundle?) {
-                                            Log.d("OnReadyForSpeech", "User Ready for speaking.")
-                                        }
-
-                                        override fun onBeginningOfSpeech() {
-                                            Log.d(
-                                                "onBeginningOfSpeech",
-                                                "The user has started to speak."
-                                            )
-                                        }
-
-                                        override fun onRmsChanged(rmsdB: Float) {
-                                            Log.d("OnRmsChanged", "Change in the level of sound")
-                                        }
-
-                                        override fun onBufferReceived(buffer: ByteArray?) {
-                                            Log.d(
-                                                "OnBufferReceived",
-                                                "More sound has been received."
-                                            )
-                                        }
-
-                                        override fun onEndOfSpeech() {
-                                            Log.d(
-                                                "onEndOfSpeech",
-                                                "Called after the user stops speaking."
-                                            )
-                                            speechRecognizer.stopListening()
-                                        }
-
-                                        override fun onError(error: Int) {
-                                            Log.d(
-                                                "OnError",
-                                                "An network or recognition error occurred."
-                                            )
-                                        }
-
-                                        override fun onResults(results: Bundle?) {
-                                            val speechResults =
-                                                results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                                            if (!speechResults.isNullOrEmpty()) {
-                                                speechRecognizer.stopListening()
-                                                userInputValue.value =
-                                                    speechResults[0].format(Locale.getDefault())
-                                                Log.d(
-                                                    "Recognized_Text",
-                                                    "Current Value : ${speechResults[0].uppercase()}"
-                                                )
-                                            }
-                                        }
-
-                                        override fun onPartialResults(partialResults: Bundle?) {
-                                            Log.d(
-                                                "OnPartialResults",
-                                                "Called when partial recognition results are available."
-                                            )
-                                        }
-
-                                        override fun onEvent(eventType: Int, params: Bundle?) {
-                                            Log.d(
-                                                "OnEvent",
-                                                "Reserved for adding future events $eventType"
-                                            )
-                                        }
-                                    })
-                                    speechRecognizer.startListening(recognizerIntent)
-                                } else {
-                                    Toast
-                                        .makeText(
-                                            context,
-                                            "Speech recognizer not available..!",
-                                            Toast.LENGTH_SHORT
-                                        )
-                                        .show()
-                                }
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.baseline_mic_external_on_24),
-                        contentDescription = ""
-                    )
-                }
+                FloatActBar(context, viewModel)
             },
             bottomBar = {
-                BottomAppBar(
-                    modifier = Modifier.height(65.dp),
-                    containerColor = Color.DarkGray,
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-
-                        Button(
-                            onClick = {
-                                xCoroutineScope.launch {
-                                    snackBarHostState.showSnackbar(
-                                        message = "Currently, we are supporting 'English' to 6 different languages translation  only..!",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                }
-                            },
-                            shape = RoundedCornerShape(15.dp),
-                            modifier = Modifier.size(width = 180.dp, height = 45.dp)
-                        ) {
-                            Text(text = fromLanguage.value, fontSize = 15.sp)
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        Icon(
-                            painter = painterResource(id = R.drawable.baseline_swap_horiz_24),
-                            contentDescription = "",
-                            tint = Color.White,
-                            modifier = Modifier.align(Alignment.CenterVertically)
-                        )
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        Button(
-                            onClick = {
-                                dropDwnStatus.value = true
-                            },
-                            shape = RoundedCornerShape(15.dp),
-                            modifier = Modifier.size(width = 180.dp, height = 45.dp)
-                        ) {
-                            Text(text = toLanguage.value, fontSize = 15.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                Icons.Filled.ArrowDropDown,
-                                contentDescription = "",
-                            )
-                        }
-                    }
-                }
+                BottomBarFn(
+                    xCoroutineScope,
+                    snackBarHostState,
+                    fromLanguage,
+                    dropDwnStatus,
+                    viewModel
+                )
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.width(60.dp)) {
                     Row {
                         DropdownMenu(
@@ -343,44 +127,33 @@ fun TranslatorHomePage(translationVM: TranslationVM) {
                             )
                         )
                         {
-                            translateLanguageList.forEachIndexed { index, text ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = translateLanguageList[index],
-                                            color = Color.White
-                                        )
-                                    },
-                                    onClick = {
-                                        toTranslateIn.intValue = index
-                                        toLanguage.value = text
-                                        dropDwnStatus.value = false
-                                    })
-                            }
+                            TransLangListFn(
+                                toTranslateIn,
+                                viewModel,
+                                dropDwnStatus
+                            )
                         }
                     }
                 }
             },
             snackbarHost = {
-               translationVM.SnackBarFn(snackBarHostState)
+               viewModel.SnackBarFn(snackBarHostState)
             }
         ) {
             Column {
                 LaunchedEffect(speakStatus.value) {
                     // speak out
                     if (speakStatus.value) {
-                        translationVM.textToSpeakFn(textToSpeech, userValueTranslated.value)
+                        viewModel.textToSpeakFn()
                         speakStatus.value = false
                     }
 
                 }
 
-                translationVM.TranslationFn(translators, userInputValue, userValueTranslated, translationVM)
-
                 TextField(
-                    value = userInputValue.value.format(Locale.ENGLISH),
+                    value = viewModel.userInputValue.value.format(Locale.ENGLISH),
                     onValueChange = { textAT ->
-                        userInputValue.value = textAT
+                        viewModel.userInputValue.value = textAT
                     },
                     placeholder = {
                         Text(
@@ -400,8 +173,9 @@ fun TranslatorHomePage(translationVM: TranslationVM) {
                         autoCorrect = true
                     )
                 )
+                
                 Text(
-                    text = userValueTranslated.value,
+                    text = viewModel.userValueTranslated.value,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(start = 10.dp, top = 2.dp),
@@ -410,18 +184,186 @@ fun TranslatorHomePage(translationVM: TranslationVM) {
                     textAlign = TextAlign.Start
                 )
             }
-            when (toLanguage.value) {
-                "HINDI" -> toTranslateLanguage.value = TranslateLanguage.HINDI
-                "TELUGU" -> toTranslateLanguage.value = TranslateLanguage.TELUGU
-                "KANNADA" -> toTranslateLanguage.value = TranslateLanguage.KANNADA
-                "GUJARATI" -> toTranslateLanguage.value = TranslateLanguage.GUJARATI
-                "MARATHI" -> toTranslateLanguage.value = TranslateLanguage.MARATHI
-                "TAMIL" -> toTranslateLanguage.value = TranslateLanguage.TAMIL
+        }
+    }
+}
+
+@Composable
+private fun TransLangListFn(
+    toTranslateIn: MutableIntState,
+    viewModel: TranslationVM,
+    dropDwnStatus: MutableState<Boolean>
+) {
+    viewModel.translateLanguageList.forEachIndexed { index, text ->
+        DropdownMenuItem(
+            text = {
+                Text(
+                    text = viewModel.translateLanguageList[index],
+                    color = Color.White
+                )
+            },
+            onClick = {
+                toTranslateIn.intValue = index
+                viewModel.toLanguage.value = text
+                dropDwnStatus.value = false
+            })
+    }
+}
+
+@Composable
+private fun BottomBarFn(
+    xCoroutineScope: CoroutineScope,
+    snackBarHostState: SnackbarHostState,
+    fromLanguage: MutableState<String>,
+    dropDwnStatus: MutableState<Boolean>,
+    viewModel: TranslationVM
+) {
+    BottomAppBar(
+        modifier = Modifier.height(65.dp),
+        containerColor = Color.DarkGray,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Button(
+                onClick = {
+                    xCoroutineScope.launch {
+                        snackBarHostState.showSnackbar(
+                            message = "Currently, we are supporting 'English' to 6 different languages translation  only..!",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                },
+                shape = RoundedCornerShape(15.dp),
+                modifier = Modifier.size(width = 180.dp, height = 45.dp)
+            ) {
+                Text(text = fromLanguage.value, fontSize = 15.sp)
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_swap_horiz_24),
+                contentDescription = "",
+                tint = Color.White,
+                modifier = Modifier.align(Alignment.CenterVertically)
+            )
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            Button(
+                onClick = {
+                    dropDwnStatus.value = true
+                },
+                shape = RoundedCornerShape(15.dp),
+                modifier = Modifier.size(width = 180.dp, height = 45.dp)
+            ) {
+                Text(text = viewModel.toLanguage.value, fontSize = 15.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    Icons.Filled.ArrowDropDown,
+                    contentDescription = "",
+                )
             }
         }
     }
 }
 
+@Composable
+private fun FloatActBar(
+    context: Context,
+    viewModel: TranslationVM
+) {
+    Box(
+        modifier = Modifier
+            .size(60.dp)
+            .clip(CircleShape)
+            .border(2.dp, Color.Magenta, shape = CircleShape)
+            .clickable(
+                enabled = true,
+                onClick = {
+                    if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                        viewModel.speechRec(context)
+                    } else {
+                        Toast
+                            .makeText(
+                                context,
+                                "Speech recognizer not available..!",
+                                Toast.LENGTH_SHORT
+                            )
+                            .show()
+                    }
+                }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.baseline_mic_external_on_24),
+            contentDescription = ""
+        )
+    }
+}
 
-
-
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun TopBarFn(
+    context: Context,
+    viewModel: TranslationVM,
+    speakStatus: MutableState<Boolean>,
+    xCoroutineScope: CoroutineScope,
+    snackBarHostState: SnackbarHostState
+) {
+    TopAppBar(
+        title = {
+            Text(text = "Translator App", fontSize = 24.sp)
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = MaterialTheme.colorScheme.onPrimary
+        ),
+        actions = {
+            IconButton(onClick = {
+                Toast.makeText(
+                    context,
+                    "History coming soon...!",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_history_24),
+                    contentDescription = "",
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+            IconButton(onClick = {
+                if (viewModel.userInputValue.value.isNotEmpty()) {
+                    speakStatus.value = true
+                    Toast.makeText(
+                        context,
+                        "Speaking out...!",
+                        Toast.LENGTH_SHORT
+                    )
+                        .show()
+                } else {
+                    xCoroutineScope.launch {
+                        snackBarHostState.showSnackbar(
+                            message = "Provide some text to translate and speak",
+                            duration = SnackbarDuration.Short,
+                            withDismissAction = true
+                        )
+                    }
+                }
+            }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_speaker_24),
+                    contentDescription = "",
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
+    )
+}

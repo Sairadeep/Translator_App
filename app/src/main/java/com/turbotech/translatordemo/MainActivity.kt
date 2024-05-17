@@ -17,9 +17,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.turbotech.translatordemo.ui.theme.TranslatorDemoTheme
-import com.turbotech.translatordemo.viewModel.TranslationVM
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -40,8 +38,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val translationVM = viewModel<TranslationVM>()
-                    TranslatorHomePage(translationVM)
+                    TranslatorHomePage()
 //                    TranslationHistoryPage(translationVM)
                 }
             }
